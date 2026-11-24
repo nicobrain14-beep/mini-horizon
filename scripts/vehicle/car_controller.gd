@@ -58,26 +58,26 @@ enum Drivetrain { RWD, AWD, FWD }
 
 @export_group("Tires")
 @export var front_grip: float = 1.3
-@export var rear_grip: float = 1.25
-@export var peak_slip_deg: float = 7.0           ## slip angle where grip is highest
-@export_range(0.1, 1.0) var slide_grip: float = 0.78   ## grip left when fully sideways
+@export var rear_grip: float = 1.4
+@export var peak_slip_deg: float = 8.0           ## slip angle where grip is highest
+@export_range(0.1, 1.0) var slide_grip: float = 0.86   ## grip left when fully sideways
 @export var surface_grip: Dictionary = {"asphalt": 1.0, "wet": 0.72, "dirt": 0.68, "grass": 0.55}
 
 @export_group("Drift")
 ## Easy drift: a tap of the handbrake at speed while steering kicks the tail out and starts
 ## a slide that throttle holds and countersteer (or lifting off) ends.
-@export_range(0.0, 1.0) var handbrake_rear_grip: float = 0.32
-@export_range(0.0, 1.0) var power_oversteer: float = 0.35   ## rear grip lost at full throttle while sliding
-@export_range(1.0, 3.0) var drift_oversteer_boost: float = 1.7   ## power oversteer multiplier while drifting
-@export var drift_kick: float = 0.55             ## yaw rate (rad/s) added when the handbrake starts a drift
-@export var drift_min_kmh: float = 30.0
+@export_range(0.0, 1.0) var handbrake_rear_grip: float = 0.45
+@export_range(0.0, 1.0) var power_oversteer: float = 0.16   ## rear grip lost at full throttle while sliding
+@export_range(1.0, 3.0) var drift_oversteer_boost: float = 1.5   ## power oversteer multiplier while drifting
+@export var drift_kick: float = 0.32             ## yaw rate (rad/s) added when the handbrake starts a drift
+@export var drift_min_kmh: float = 45.0
 @export var drift_max_angle_deg: float = 40.0    ## drift assist stops the car rotating further than this
 @export_range(0.0, 5.0) var drift_assist: float = 2.5
 
 @export_group("Assists")
 @export var traction_control: bool = true
 @export var stability_control: bool = true
-@export_range(0.0, 2.0) var stability_strength: float = 0.6
+@export_range(0.0, 2.0) var stability_strength: float = 1.0
 
 @export_group("Aero")
 @export var drag_coefficient: float = 0.38       ## F = c * v^2

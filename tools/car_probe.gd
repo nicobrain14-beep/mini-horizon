@@ -31,7 +31,27 @@ func _initialize() -> void:
 	await _wait(3.0)
 	print("turning: %.1f km/h yaw %.1f deg up.y %.2f" % [car.speed_kmh(), rad_to_deg(car.global_rotation.y), car.global_basis.y.y])
 	Input.action_release("steer_left")
-	await _wait(3.0)                            # straighten up and build speed for the drift
+	await _wait(5.0)                            # straighten up and build speed
+	# a fast corner without the handbrake must grip, not slide
+	print("fast corner at %.1f km/h" % car.speed_kmh())
+	Input.action_press("steer_right")
+	var corner_peak: float = 0.0
+	for i: int in 16:
+		await _wait(0.125)
+		corner_peak = maxf(corner_peak, rad_to_deg(absf(atan2(car.linear_velocity.dot(car.global_basis.x), absf(car.speed)))))
+	Input.action_release("steer_right")
+	print("fast corner: peak body angle %.0f deg (should stay small), %.1f km/h" % [corner_peak, car.speed_kmh()])
+	if corner_peak > 14.0:
+		fail.append("slides in a normal corner")
+	await _wait(2.0)
+	# drift test on the big pad: start fresh, build speed in a straight line
+	car.global_transform = Transform3D(Basis.IDENTITY, Vector3(106.0, 1.0, 20.0))
+	car.linear_velocity = Vector3.ZERO
+	car.angular_velocity = Vector3.ZERO
+	car.reset_physics_interpolation()
+	Input.action_release("steer_left")
+	Input.action_release("steer_right")
+	await _wait(4.5)
 	print("before drift: %.1f km/h" % car.speed_kmh())
 	Input.action_press("steer_left")
 	Input.action_press("handbrake")
