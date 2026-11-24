@@ -18,6 +18,9 @@ enum Drivetrain { RWD, AWD, FWD }
 @export var track_width: float = 1.62
 @export var mount_height: float = 0.1
 @export var paint_color: Color = Color(0.95, 0.72, 0.05)
+## Imported car (.glb with Body + Wheel_FL/FR/RL/RR). Its wheels set wheelbase, track and
+## wheel radius. Leave empty to use the simple placeholder body.
+@export var model_scene: PackedScene = preload("res://assets/models/cars/coupe/coupe.glb")
 
 @export_group("Engine")
 @export var max_torque: float = 470.0            ## Nm at the peak of the curve
@@ -98,6 +101,8 @@ var drifting: bool = false
 var _shift_timer: float = 0.0
 var _steer: float = 0.0
 var _flipped_time: float = 0.0
+var _model: CarModel
+var _wheel_xz: Array[Vector2] = []
 var _air_time: float = 0.0
 var _fall_speed: float = 0.0
 var _drift_time: float = 0.0
@@ -118,11 +123,14 @@ func _ready() -> void:
 	continuous_cd = true
 	can_sleep = false
 	angular_damp = 0.4
-	_build_collision()
-	var visual := CarBodyVisual.new()
-	visual.name = "Body"
-	visual.paint_color = paint_color
-	add_child(visual)
+	if model_scene:
+		_build_model()
+	else:
+		_build_collision()
+		var visual := CarBodyVisual.new()
+		visual.name = "Body"
+		visual.paint_color = paint_color
+		add_child(visual)
 	_build_wheels()
 	var fx := CarFx.new()
 	fx.name = "Fx"
@@ -144,6 +152,40 @@ func _build_collision() -> void:
 	add_child(cabin)
 
 
+func _build_model() -> void:
+	_model = CarModel.new()
+	_model.name = "Body"
+	_model.paint_color = paint_color
+	add_child(_model)
+	_model.load_model(model_scene)
+	var c: Array[Vector3] = _model.wheel_centers
+	wheel_radius = _model.wheel_radius
+	track_width = absf(c[1].x - c[0].x)
+	wheelbase = absf(c[2].z - c[0].z)
+	# sit the body so the wheel centres match where the suspension holds them at rest
+	var static_compression: float = car_mass * 9.81 * 0.25 / spring_stiffness
+	var wheel_y: float = mount_height - rest_length + static_compression
+	var mid_z: float = (c[0].z + c[2].z) * 0.5
+	_model.position = Vector3(0.0, wheel_y - c[0].y, -mid_z)
+	for w: Vector3 in c:
+		_wheel_xz.append(Vector2(w.x, w.z - mid_z))
+	# collision: a low box for the body and a smaller one for the cabin
+	var base_y: float = _model.position.y
+	var length: float = wheelbase + wheel_radius * 2.0 + 1.0
+	var lower := CollisionShape3D.new()
+	var lb := BoxShape3D.new()
+	lb.size = Vector3(track_width + 0.3, 0.55, length)
+	lower.shape = lb
+	lower.position = Vector3(0.0, base_y + 0.55, 0.0)
+	add_child(lower)
+	var cabin := CollisionShape3D.new()
+	var cb := BoxShape3D.new()
+	cb.size = Vector3(track_width * 0.85, 0.45, length * 0.42)
+	cabin.shape = cb
+	cabin.position = Vector3(0.0, base_y + 1.05, 0.15)
+	add_child(cabin)
+
+
 func _build_wheels() -> void:
 	var half_w: float = track_width * 0.5
 	var half_l: float = wheelbase * 0.5
@@ -159,12 +201,16 @@ func _build_wheels() -> void:
 		w.is_front = s[1]
 		w.is_left = s[2]
 		w.position = s[3]
+		if not _wheel_xz.is_empty():
+			var xz: Vector2 = _wheel_xz[wheels.size()]
+			w.position = Vector3(xz.x, mount_height, xz.y)
 		match drivetrain:
 			Drivetrain.RWD: w.is_driven = not w.is_front
 			Drivetrain.FWD: w.is_driven = w.is_front
 			_: w.is_driven = true
 		add_child(w)
-		w.setup(self, wheel_radius, rest_length, CarBodyVisual.make_wheel(wheel_radius, w.is_left))
+		var vis: Node3D = _model.take_wheel(wheels.size()) if _model else CarBodyVisual.make_wheel(wheel_radius, w.is_left)
+		w.setup(self, wheel_radius, rest_length, vis)
 		wheels.append(w)
 
 
@@ -224,6 +270,8 @@ func _physics_process(delta: float) -> void:
 		_fall_speed = maxf(-linear_velocity.y, 0.0)
 	for w: CarWheel in wheels:
 		w.update_visual(delta)
+	if _model:
+		_model.set_braking(brake if speed > 0.5 else 0.0)
 	_auto_reset(delta)
 
 
