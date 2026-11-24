@@ -15,20 +15,32 @@ Juego de carreras en mundo abierto, con el look más realista posible para el ha
 - Medir siempre el rendimiento antes y después de cambios grandes (monitor de Godot: FPS, memoria de video, draw calls).
 - Si un efecto cuesta mucho, proponer una alternativa más barata que se vea parecida.
 
+## Lista completa de herramientas (resumen)
+- Programas en la Mac: Godot 4.7, Claude Code, Blender, Git + GitHub (con Git LFS). No se usa Node.js.
+- Conexión con Godot: sin MCP; Claude Code ejecuta Godot directo desde la Terminal (ver abajo).
+- Conexión con Blender: Blender MCP (usa `uv`, no Node.js).
+- Complementos de Godot: Jolt Physics, Terrain3D, Sky3D.
+- Texturas y cielos: Poly Haven, ambientCG.
+- Modelos 3D: Sketchfab, CGTrader, TurboSquid, Kenney.nl, Quaternius.
+- Personas (NPCs) y animaciones: Mixamo (gratis con cuenta de Adobe).
+- Sonido: Freesound.org.
+
 ## Motor y herramientas
-- Godot 4 (última versión estable), renderer Forward+. Si el rendimiento no alcanza, probar el renderer Mobile.
+- Godot 4.7, renderer Forward+. Si el rendimiento no alcanza, probar el renderer Mobile.
 - Física 3D: Jolt (Project Settings → Physics → 3D → Physics Engine).
 - Lenguaje: GDScript con tipado estático.
 - Assets: Poly Haven (texturas PBR, HDRIs, modelos, CC0), modelos de carros genéricos (sin marcas), Blender para ajustes y exportar a glTF (.glb).
 - Audio: sonidos de Freesound.org; motor con varias capas según RPM (pitch y volumen).
 - Control de versiones: Git + GitHub. Usar Git LFS para .glb, .png, .jpg, .exr, .hdr, .wav, .ogg.
 
+## Cómo Claude Code usa Godot (sin MCP, sin Node.js)
+- Ejecutable de Godot: `/Applications/Godot.app/Contents/MacOS/Godot` (si no existe ahí, preguntar al usuario dónde está).
+- Revisar errores de scripts después de cada cambio: `/Applications/Godot.app/Contents/MacOS/Godot --headless --path . --quit`
+- Correr el juego o una escena y leer la salida de depuración: `/Applications/Godot.app/Contents/MacOS/Godot --path . res://scenes/levels/<escena>.tscn`
+- Construir nodos por código o con scripts `@tool`/EditorScript cuando sea más seguro que editar `.tscn` a mano.
+- Después de cada cambio, explicar al usuario qué abrir en el editor y qué debería ver.
+
 ## Conexiones MCP de Claude Code
-Usarlas siempre que estén disponibles, en lugar de pedirle al usuario que haga pasos a mano.
-- Godot MCP (`claude mcp add godot -- npx @coding-solo/godot-mcp`; requiere Node.js):
-  - Usarlo para abrir el editor, correr el juego y leer los errores/salida de depuración después de cada cambio.
-  - Usarlo para crear escenas y agregar nodos cuando sea más seguro que editar `.tscn` a mano.
-  - Si no está conectado, verificar errores con `godot --headless --path . --quit` y avisar al usuario.
 - Blender MCP (`claude mcp add blender uvx mcp-for-blender`; requiere el complemento dentro de Blender abierto):
   - Usarlo para preparar modelos para Godot: separar llantas del chasis, poner el origen de cada llanta en su centro, aplicar escala (1 unidad = 1 m), orientar el carro hacia -Z, reducir polígonos si hace falta.
   - Crear piezas modulares sencillas (banquetas, barreras, señales, edificios simples) y exportar a `.glb` en `assets/models/`.
@@ -49,6 +61,7 @@ Usarlas siempre que estén disponibles, en lugar de pedirle al usuario que haga 
 - Kenney.nl y Quaternius (CC0): edificios y props sencillos para relleno lejano.
 - Sketchfab: solo modelos con licencia que permita uso en juegos (CC0 / CC-BY, dar crédito). Sin marcas reales.
 - CGTrader / TurboSquid: modelos de carros de pago de alta calidad (revisar licencia).
+- Mixamo: personajes humanos y animaciones (caminar, platicar, sentarse, saludar). Gratis, libre de regalías. Descargar en FBX y convertir a `.glb` con Blender si hace falta.
 - Freesound.org: sonidos (revisar licencia de cada uno).
 - Registrar cada asset con licencia que pida crédito en `CREDITS.md`.
 
@@ -65,7 +78,7 @@ Usarlas cuando apliquen (licencias en `.claude/third_party_licenses/`):
 - Comunicación entre sistemas con señales. Singletons (Autoload) solo para sistemas globales: `GameManager`, `RaceManager`, `SaveManager`, `AudioManager`.
 - Un script por responsabilidad. Nombres de archivos en `snake_case`, clases con `class_name` en `PascalCase`.
 - Los archivos `.tscn` y `.tres` son texto: se pueden editar, pero con cuidado. Para escenas complejas, preferir construir nodos por código o explicar los pasos en el editor.
-- Después de cada cambio: verificar errores con `godot --headless --path . --quit` (o equivalente) y explicar cómo probarlo en el editor y qué debería verse.
+- Después de cada cambio: verificar errores con Godot en modo `--headless` (ver "Cómo Claude Code usa Godot") y explicar cómo probarlo en el editor y qué debería verse.
 - Cambios pequeños y verificables. Antes de una función grande, proponer un plan y esperar aprobación.
 
 ## Física del carro
@@ -124,40 +137,6 @@ Usarlas cuando apliquen (licencias en `.claude/third_party_licenses/`):
 - `assets/audio/` — sonidos
 - `tools/` — scripts de herramientas de editor (`@tool`, EditorScript)
 
-## Herramientas a crear
-- EditorScript que importe una carpeta de Poly Haven (diffuse, nor_gl, arm) y genere automáticamente un `ORMMaterial3D` `.tres`.
-- Herramienta para colocar vegetación sobre el terreno con reglas (pendiente, distancia a la carretera).
-
-## Legal
-- No usar marcas, logos ni modelos de carros reales sin licencia. Carros genéricos o diseños propios.
-- Revisar la licencia de cada asset; Poly Haven es CC0.
-
-## Lista completa de herramientas
-
-### Programas instalados en la Mac
-- Godot 4.7 (renderer Forward+)
-- Node.js (para Godot MCP)
-- Blender (para modelos 3D)
-- Git + GitHub con Git LFS (respaldos)
-
-### Conexiones MCP de Claude Code
-- Godot MCP: claude mcp add godot -- npx @coding-solo/godot-mcp
-- Blender MCP: claude mcp add blender uvx mcp-for-blender
-
-### Complementos de Godot
-- Jolt Physics (ya activado)
-- Terrain3D (TokisanGames) – terreno y pasto
-- Sky3D (TokisanGames) – día/noche, sol, nubes
-
-### Fuentes de assets
-- Poly Haven y ambientCG: texturas PBR (asfalto, tierra, pasto, roca, aplanado/stucco), HDRIs
-- Sketchfab, CGTrader, TurboSquid: modelos de carros de alta calidad
-- Kenney.nl y Quaternius: relleno lejano
-- Mixamo (mixamo.com, cuenta gratis de Adobe): personajes (NPCs) con animaciones (caminar, platicar, sentarse, saludar); libres de regalías
-- Sketchfab también para edificios especiales (iglesia, kiosco, mercado); el resto del pueblo con el kit propio de Blender
-- Freesound.org: sonidos de motor, llantas, viento, ciudad
-- Registrar créditos en CREDITS.md
-
 ## Realismo del carro (prioridad alta)
 - Modelo 3D de buena calidad (~100k–300k triángulos para el carro del jugador), llantas separadas, faros e interiores con detalle.
 - Shader de pintura con clearcoat y flakes metálicos; parámetro de color para cambiar pintura.
@@ -175,11 +154,18 @@ Usarlas cuando apliquen (licencias en `.claude/third_party_licenses/`):
 - Un solo material de pared con parámetro de color (azul, rosa, amarillo, terracota, blanco) + máscaras de suciedad, humedad abajo, pintura descarapelada y escurrimientos bajo ventanas.
 - Herramienta @tool en Godot que genere calles automáticamente: casas de tamaños, colores y desgaste al azar.
 - Detalles: macetas, letreros, cables entre postes, plantas, kiosco y plaza, iglesia, mercado.
-- Rendimiento: piezas compartidas (instancias/MultiMesh), rangos de visibilidad y versiones simples para casas lejanas.
+- Edificios especiales (iglesia, kiosco, mercado): buscar en Sketchfab (descargables, licencia compatible); si pesan mucho, simplificarlos con Blender MCP.
 
-## Personas (NPCs)
-- Personajes y animaciones de Mixamo, importados a Godot.
-- Pocos a la vez: 10–20 cerca del jugador, solo en el pueblo; aparecen y desaparecen según la distancia (los personajes animados son caros en esta Mac).
+## Personas (NPCs) en el pueblo
+- Personajes y animaciones de Mixamo (caminar, platicar, sentarse, saludar, esperar).
+- Solo en el pueblo y el festival. Máximo 10–20 visibles a la vez cerca del jugador (límite de la Mac).
+- Aparecen cuando el jugador se acerca y desaparecen al alejarse (pool de NPCs reutilizables, sin crear/destruir constantemente).
+- Comportamientos simples: caminar por banquetas siguiendo rutas (Path3D/NavigationRegion3D), pararse a platicar, sentarse en la plaza, comprar en el mercado.
+- Se apartan cuando un carro se acerca (corren a un lado); nunca se pueden atropellar.
+- Variedad barata: pocos modelos base con colores de ropa distintos (parámetro de material).
+- Rendimiento: animaciones a menor frecuencia y modelos simples a distancia; ocultar NPCs lejanos.
+- Gente extra en eventos: público en las salidas de carreras y en el festival.
+- Rendimiento: piezas compartidas (instancias/MultiMesh), rangos de visibilidad y versiones simples para casas lejanas.
 
 ## Mapa del mundo y mapa del juego (estilo Forza Horizon / GTA)
 
@@ -369,3 +355,11 @@ Usarlas cuando apliquen (licencias en `.claude/third_party_licenses/`):
 98. Máximo Rebase – rebasa a 20 carros.
 99. Reto del Mecánico – carro dañado (menos potencia, dirección chueca).
 100. Leyenda del Festival – asfalto, tierra, saltos, derrapes y noche juntos.
+
+## Herramientas a crear
+- EditorScript que importe una carpeta de Poly Haven (diffuse, nor_gl, arm) y genere automáticamente un `ORMMaterial3D` `.tres`.
+- Herramienta para colocar vegetación sobre el terreno con reglas (pendiente, distancia a la carretera).
+
+## Legal
+- No usar marcas, logos ni modelos de carros reales sin licencia. Carros genéricos o diseños propios.
+- Revisar la licencia de cada asset; Poly Haven es CC0.
