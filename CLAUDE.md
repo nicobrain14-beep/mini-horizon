@@ -20,11 +20,36 @@ Juego de carreras en mundo abierto, con el look más realista posible para el ha
 - Física 3D: Jolt (Project Settings → Physics → 3D → Physics Engine).
 - Lenguaje: GDScript con tipado estático.
 - Assets: Poly Haven (texturas PBR, HDRIs, modelos, CC0), modelos de carros genéricos (sin marcas), Blender para ajustes y exportar a glTF (.glb).
-- Terreno: plugin Terrain3D (verificar compatibilidad con la versión de Godot y macOS antes de instalar). Alternativa: terreno como mallas por secciones.
-- Carreteras: mallas generadas a partir de Path3D/Curve3D (o plugin de carreteras si es compatible).
-- Vegetación: MultiMeshInstance3D con rangos de visibilidad.
 - Audio: sonidos de Freesound.org; motor con varias capas según RPM (pitch y volumen).
 - Control de versiones: Git + GitHub. Usar Git LFS para .glb, .png, .jpg, .exr, .hdr, .wav, .ogg.
+
+## Conexiones MCP de Claude Code
+Usarlas siempre que estén disponibles, en lugar de pedirle al usuario que haga pasos a mano.
+- Godot MCP (`claude mcp add godot -- npx @coding-solo/godot-mcp`; requiere Node.js):
+  - Usarlo para abrir el editor, correr el juego y leer los errores/salida de depuración después de cada cambio.
+  - Usarlo para crear escenas y agregar nodos cuando sea más seguro que editar `.tscn` a mano.
+  - Si no está conectado, verificar errores con `godot --headless --path . --quit` y avisar al usuario.
+- Blender MCP (`claude mcp add blender uvx mcp-for-blender`; requiere el complemento dentro de Blender abierto):
+  - Usarlo para preparar modelos para Godot: separar llantas del chasis, poner el origen de cada llanta en su centro, aplicar escala (1 unidad = 1 m), orientar el carro hacia -Z, reducir polígonos si hace falta.
+  - Crear piezas modulares sencillas (banquetas, barreras, señales, edificios simples) y exportar a `.glb` en `assets/models/`.
+  - Puede descargar assets de Poly Haven directamente; guardar todo en las carpetas del proyecto.
+- Solo usar los servidores MCP oficiales listados aquí. No instalar otros sin preguntar al usuario.
+
+## Complementos de Godot
+- Jolt (integrado): motor de física 3D. Project Settings → Physics → 3D → Physics Engine = Jolt.
+- Terrain3D (AssetLib, de TokisanGames): terreno del mundo abierto. Usar su sistema de texturas (pintar asfalto/tierra/pasto/roca) y su sistema de instancias para pasto y rocas. Preparar texturas según su guía (albedo+altura y normal+rugosidad empacadas).
+- Sky3D (AssetLib, de TokisanGames): ciclo día/noche, sol, luna, nubes. Controlar la hora del juego desde `GameManager`.
+- Carreteras: usar un complemento de carreteras del AssetLib solo si es compatible con la versión de Godot del proyecto; si no, generar mallas de carretera desde Path3D/Curve3D con un script `@tool` propio.
+- Vegetación extra: MultiMeshInstance3D con rangos de visibilidad y shader de viento.
+- Antes de instalar cualquier complemento nuevo: verificar compatibilidad con la versión de Godot y macOS, y preguntar al usuario.
+
+## Fuentes de assets
+- Poly Haven (CC0): texturas PBR, HDRIs, modelos.
+- ambientCG (CC0): texturas extra (asfalto mojado, concreto, banquetas).
+- Kenney.nl y Quaternius (CC0): edificios y props sencillos para relleno lejano.
+- Sketchfab: solo modelos con licencia que permita uso en juegos (CC0 / CC-BY, dar crédito). Sin marcas reales.
+- Freesound.org: sonidos (revisar licencia de cada uno).
+- Registrar cada asset con licencia que pida crédito en `CREDITS.md`.
 
 ## Reglas de código
 - GDScript con tipado estático (`var speed: float = 0.0`, `func foo(x: int) -> void`).
@@ -41,7 +66,12 @@ Juego de carreras en mundo abierto, con el look más realista posible para el ha
 - Parámetros editables: curva de torque, relaciones de caja, peso, centro de masa, rigidez y amortiguación de suspensión, agarre por superficie (asfalto, tierra, pasto, mojado).
 - Superficies detectadas por grupo o metadata del collider para cambiar agarre, sonido y partículas.
 
-## Estándar visual
+## Estándar visual ("look Horizon")
+- Look objetivo: atardecer dorado, colores vivos pero creíbles, carro brillante, sensación fuerte de velocidad.
+- Sensación de velocidad: cámara de persecución que se aleja y abre el FOV al acelerar, ligero temblor, partículas de polvo/humo al derrapar, marcas de llantas.
+- Vegetación con shader de viento (barato).
+- Noche: faros con SpotLight3D, farolas con glow, ventanas iluminadas con emisión.
+- HUD estilo Horizon: velocímetro, marcha, minimapa, notificaciones de carrera.
 - WorldEnvironment:
   - Cielo: HDRI de Poly Haven (PanoramaSkyMaterial) para pruebas; `PhysicalSkyMaterial` + sol animado para día/noche.
   - Tonemap AgX o ACES (elegir el que se vea mejor), exposición controlada.
