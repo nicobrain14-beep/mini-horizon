@@ -153,6 +153,8 @@ Usarlas cuando apliquen (licencias en `.claude/third_party_licenses/`):
 - Poly Haven y ambientCG: texturas PBR (asfalto, tierra, pasto, roca, aplanado/stucco), HDRIs
 - Sketchfab, CGTrader, TurboSquid: modelos de carros de alta calidad
 - Kenney.nl y Quaternius: relleno lejano
+- Mixamo (mixamo.com, cuenta gratis de Adobe): personajes (NPCs) con animaciones (caminar, platicar, sentarse, saludar); libres de regalías
+- Sketchfab también para edificios especiales (iglesia, kiosco, mercado); el resto del pueblo con el kit propio de Blender
 - Freesound.org: sonidos de motor, llantas, viento, ciudad
 - Registrar créditos en CREDITS.md
 
@@ -174,6 +176,10 @@ Usarlas cuando apliquen (licencias en `.claude/third_party_licenses/`):
 - Herramienta @tool en Godot que genere calles automáticamente: casas de tamaños, colores y desgaste al azar.
 - Detalles: macetas, letreros, cables entre postes, plantas, kiosco y plaza, iglesia, mercado.
 - Rendimiento: piezas compartidas (instancias/MultiMesh), rangos de visibilidad y versiones simples para casas lejanas.
+
+## Personas (NPCs)
+- Personajes y animaciones de Mixamo, importados a Godot.
+- Pocos a la vez: 10–20 cerca del jugador, solo en el pueblo; aparecen y desaparecen según la distancia (los personajes animados son caros en esta Mac).
 
 ## Mapa del mundo y mapa del juego (estilo Forza Horizon / GTA)
 
