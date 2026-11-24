@@ -1,0 +1,5 @@
+# Godot 4 cache (se regenera solo)
+.godot/
+/android/
+# macOS
+.DS_Store

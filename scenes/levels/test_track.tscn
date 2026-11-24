@@ -1,0 +1,12 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/test_track.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/world/free_camera.gd" id="2"]
+
+[node name="TestTrack" type="Node3D"]
+script = ExtResource("1")
+
+[node name="FreeCamera" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.9659258, 0.25881904, 0, -0.25881904, 0.9659258, 0, 3.5, 14)
+fov = 70.0
+script = ExtResource("2")
