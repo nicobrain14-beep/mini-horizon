@@ -130,3 +130,46 @@ Usarlas cuando apliquen (licencias en `.claude/third_party_licenses/`):
 ## Legal
 - No usar marcas, logos ni modelos de carros reales sin licencia. Carros genéricos o diseños propios.
 - Revisar la licencia de cada asset; Poly Haven es CC0.
+
+## Lista completa de herramientas
+
+### Programas instalados en la Mac
+- Godot 4.7 (renderer Forward+)
+- Node.js (para Godot MCP)
+- Blender (para modelos 3D)
+- Git + GitHub con Git LFS (respaldos)
+
+### Conexiones MCP de Claude Code
+- Godot MCP: claude mcp add godot -- npx @coding-solo/godot-mcp
+- Blender MCP: claude mcp add blender uvx mcp-for-blender
+
+### Complementos de Godot
+- Jolt Physics (ya activado)
+- Terrain3D (TokisanGames) – terreno y pasto
+- Sky3D (TokisanGames) – día/noche, sol, nubes
+
+### Fuentes de assets
+- Poly Haven y ambientCG: texturas PBR (asfalto, tierra, pasto, roca, aplanado/stucco), HDRIs
+- Sketchfab, CGTrader, TurboSquid: modelos de carros de alta calidad
+- Kenney.nl y Quaternius: relleno lejano
+- Freesound.org: sonidos de motor, llantas, viento, ciudad
+- Registrar créditos en CREDITS.md
+
+## Realismo del carro (prioridad alta)
+- Modelo 3D de buena calidad (~100k–300k triángulos para el carro principal), llantas separadas.
+- Shader de pintura con clearcoat y flakes metálicos.
+- ReflectionProbe que siga al carro + SSR.
+- Sombra de contacto debajo del carro (decal oscuro suave).
+- Calaveras y faros con emisión; faros con SpotLight3D de noche.
+- Desenfoque de llantas al girar rápido.
+- Inclinación de la carrocería en curvas y al frenar/acelerar.
+- Desenfoque de velocidad en el piso y bordes de pantalla.
+- Modo Foto: pausa el juego y sube toda la calidad (sombras, reflejos, profundidad de campo) solo para capturas.
+- Las marcas reales solo para pruebas personales; para publicar, carros genéricos.
+
+## Casas estilo pueblo mexicano (etapa 4)
+- Kit modular creado con Blender MCP: muros con aplanado, ventanas con herrería, puertas de madera, balcones, pretiles, tinacos, postes con cables, banquetas con guarnición amarilla.
+- Un solo material de pared con parámetro de color (azul, rosa, amarillo, terracota, blanco) + máscaras de suciedad, humedad abajo, pintura descarapelada y escurrimientos.
+- Herramienta @tool en Godot que genere calles automáticamente con casas de tamaños, colores y desgaste al azar.
+- Detalles: macetas, letreros, cables entre postes, plantas.
+- Rendimiento: piezas compartidas (instancias), rangos de visibilidad y versiones simples para casas lejanas.
