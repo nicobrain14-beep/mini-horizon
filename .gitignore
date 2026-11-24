@@ -3,3 +3,7 @@
 /android/
 # macOS
 .DS_Store
+
+# world generator intermediates (rebuilt by tools/world/build_world.py)
+assets/world/height.bin
+assets/world/zones.png
