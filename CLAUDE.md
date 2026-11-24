@@ -33,6 +33,11 @@ Juego de carreras en mundo abierto, con el look más realista posible para el ha
 - Audio: sonidos de Freesound.org; motor con varias capas según RPM (pitch y volumen).
 - Control de versiones: Git + GitHub. Usar Git LFS para .glb, .png, .jpg, .exr, .hdr, .wav, .ogg.
 
+## Flujo de trabajo actual
+- El usuario NO usa la Terminal. No pedirle comandos de Terminal.
+- Claude trabaja en una sesión en la nube (Godot y Blender sin pantalla ahí), sube los cambios a GitHub y el usuario actualiza su Mac con Code → Download ZIP (carpeta `Documents/Godot/mini-horizon-main`, abrir `project.godot` desde Godot). Dar los pasos uno por uno.
+- Si el usuario conecta su carpeta con la app de escritorio de Claude (Remote Control), trabajar directo en esa carpeta.
+
 ## Cómo Claude Code usa Godot (sin MCP, sin Node.js)
 - Ejecutable de Godot: `/Applications/Godot.app/Contents/MacOS/Godot` (si no existe ahí, preguntar al usuario dónde está).
 - Revisar errores de scripts después de cada cambio: `/Applications/Godot.app/Contents/MacOS/Godot --headless --path . --quit`
