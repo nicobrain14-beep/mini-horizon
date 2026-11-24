@@ -10,3 +10,7 @@ Modelos 3D:
 - "Generic Sport Coupé Car" de MMC Works — https://sketchfab.com/3d-models/generic-sport-coupe-car-820a13c4831c41959ce75e6c2014e882
   Licencia CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Cambios: se quitó el rig de animación,
   se separaron las 4 llantas, se reorientó y se repinta en el juego (tools/blender/car_prep.py).
+- Textura "Rock Face 03" — polyhaven.com (CC0)
+
+Complementos:
+- Terrain3D 1.1.0 de TokisanGames — MIT (addons/terrain_3d/LICENSE.txt)

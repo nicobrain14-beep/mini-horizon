@@ -174,13 +174,36 @@ Usarlas cuando apliquen (licencias en `.claude/third_party_licenses/`):
 
 ## Mapa del mundo y mapa del juego (estilo Forza Horizon / GTA)
 
-### Distribución del mundo (~2×2 km al inicio)
-- Norte: Sierra (mirador, antena, curvas de montaña). Noreste: Barranca (camino junto al precipicio).
-- Oeste: Bosque (rally entre pinos) y Río (brechas que lo cruzan).
-- Centro: Pueblo mexicano (plaza con kiosco, mercado, iglesia, callejones) + Festival (base del jugador) al lado.
-- Este: Autopista (rectas largas, radares de velocidad).
-- Sur: Rancho y campos de magueyes (tierra y saltos). Suroeste: Lago (circuito).
-- Todas las zonas conectadas por carreteras; atajos de tierra entre zonas.
+### Plan del mundo (aprobado)
+- Mundo de 8×8 km (empezar con 4×4 km y ampliar sin mover nada: el diseño completo se hace desde el inicio).
+- Terreno por regiones con carga por secciones (Terrain3D si pasa la prueba en la Mac del usuario; si macOS lo bloquea, terreno propio por regiones). Detalle solo cerca del jugador; lo lejano es terreno simple.
+- El detalle (casas, NPCs, objetos) se concentra en ciudades, pueblos y lugares especiales; el resto es terreno, vegetación instanciada y carreteras.
+- Sin patrones ni formas geométricas: nada de cuadros, círculos ni bordes rectos. La región tiene forma irregular con costa (bahías, penínsulas, cabos, una isla) y las zonas se mezclan de forma natural.
+- Sin un "centro" literal: un estado con varias ciudades repartidas, como el mapa de Forza Horizon Japón.
+
+### Distribución del mundo (estado inspirado en México, nombres originales)
+- Ciudad Alta (metrópoli): en una bahía de la costa este, con puerto, centro histórico irregular, avenidas que salen como rayos, periférico curvo, colonias con calles en distintas direcciones, zona industrial y parques; el borde se deshace en casas sueltas.
+- San Lucero (ciudad colonial de casas de colores): al suroeste, entre cerros; plaza, iglesia, mercado y callejones.
+- Pueblos pequeños: uno junto al lago (pescadores), uno en la sierra (montaña), uno en la costa (playa y faro), uno en los campos (magueyes y ranchos).
+- Volcán nevado grande (estilo Popocatépetl), fuera del centro, visible desde casi todo el mapa; bosque de pinos en sus faldas.
+- Sierra con montañas y valles al noroeste; barranca profunda al noreste cavada por un río.
+- Lago grande en el oeste; ríos que bajan de la sierra al lago y al mar.
+- Costa con playas al oeste y al sur; península al sureste y una isla.
+- Campos de cultivo y magueyes en las llanuras del noreste; ranchos; zona semidesértica en la meseta del noroeste.
+- Festival (base del jugador) en una llanura entre las ciudades.
+- Carreteras: autopista que cruza el estado y une las ciudades, periférico de la metrópoli, carreteras de montaña con curvas reales, terracerías y brechas, calles de ciudad y pueblo que siguen el terreno (no cuadrículas). Red guardada como grafo para el GPS (AStar3D).
+- Pintura del terreno por reglas: roca en pendiente, nieve en la cima del volcán, arena/lodo cerca del agua, pasto, tierra seca y cultivos por zona. Vegetación instanciada por reglas, nunca sobre carreteras.
+
+### Fases del mundo y del mapa
+0. Prueba de Terrain3D en la Mac del usuario (escena mínima).
+1. Generador del mundo (relieve, agua, zonas) → imagen de borrador del mapa.
+2. Red de carreteras (grafo, aplanado del terreno) → mapa con carreteras.
+3. Mundo en Godot (primeros 4×4 km): terreno por regiones, texturas por reglas, carreteras desde curvas, agua, Sky3D. Medir FPS y memoria.
+4. Vegetación instanciada con viento.
+5. Imagen del mapa estilo satélite (herramienta @tool): texturas reales reducidas, copas de árboles en bosques, parcelas de cultivo, relieve sombreado con luz del noroeste, agua profunda con orilla clara, ciudades grises con calles, carreteras blancas con borde oscuro (autopista gruesa, terracería delgada/punteada), nombres en blanco con contorno según importancia, mosaicos por zoom; todo con @export.
+6. Pantalla del mapa (M) y minimapa: zoom suave y arrastre, más detalle al acercarse, íconos por tipo, leyenda, filtros, tarjeta, waypoint + ruta GPS, niebla de mapa.
+7. Ampliar a 8×8 km midiendo memoria.
+- En cada fase: mostrar capturas al usuario y esperar su visto bueno antes de seguir.
 
 ### Mapa completo (pantalla de pausa, tecla M)
 - Vista desde arriba del mundo entero, con zoom (rueda/gatillos) y arrastre.
