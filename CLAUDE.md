@@ -51,6 +51,13 @@ Usarlas siempre que estén disponibles, en lugar de pedirle al usuario que haga 
 - Freesound.org: sonidos (revisar licencia de cada uno).
 - Registrar cada asset con licencia que pida crédito en `CREDITS.md`.
 
+## Skills del proyecto (`.claude/skills/`)
+Usarlas cuando apliquen (licencias en `.claude/third_party_licenses/`):
+- `racing-feel`: checklist de sensación de carreras (drift fácil, frenar para girar, giro suficiente, velocidad que se siente, tono de motor, reinicio rápido).
+- `feel-pass`, `game-qa`, `game-ux-review`: revisar sensación, bugs y HUD con una build jugable.
+- `systematic-debugging`, `verification-before-completion`, `writing-plans`: depurar con método, verificar antes de decir "listo", planear antes de funciones grandes.
+- Blender (vía Blender MCP en la Mac): `vehicle-artist`, `blender-godot-export`, `export-pipeline`, `lod-pipeline`, `uv-workflow`, `texture-workflow`.
+
 ## Reglas de código
 - GDScript con tipado estático (`var speed: float = 0.0`, `func foo(x: int) -> void`).
 - Valores ajustables (potencia, agarre, suspensión, tiempos) como `@export`, nunca "hardcodeados". Agruparlos con `@export_group`.

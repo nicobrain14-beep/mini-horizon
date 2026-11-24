@@ -64,8 +64,15 @@ enum Drivetrain { RWD, AWD, FWD }
 @export var surface_grip: Dictionary = {"asphalt": 1.0, "wet": 0.72, "dirt": 0.68, "grass": 0.55}
 
 @export_group("Drift")
-@export_range(0.0, 1.0) var handbrake_rear_grip: float = 0.42
+## Easy drift: a tap of the handbrake at speed while steering kicks the tail out and starts
+## a slide that throttle holds and countersteer (or lifting off) ends.
+@export_range(0.0, 1.0) var handbrake_rear_grip: float = 0.32
 @export_range(0.0, 1.0) var power_oversteer: float = 0.35   ## rear grip lost at full throttle while sliding
+@export_range(1.0, 3.0) var drift_oversteer_boost: float = 1.7   ## power oversteer multiplier while drifting
+@export var drift_kick: float = 0.55             ## yaw rate (rad/s) added when the handbrake starts a drift
+@export var drift_min_kmh: float = 30.0
+@export var drift_max_angle_deg: float = 40.0    ## drift assist stops the car rotating further than this
+@export_range(0.0, 5.0) var drift_assist: float = 2.5
 
 @export_group("Assists")
 @export var traction_control: bool = true
@@ -86,12 +93,15 @@ var gear: int = 1                                 # -1 reverse, 0 neutral, 1..n
 var rpm: float = 900.0
 var speed: float = 0.0                            # m/s, signed along forward
 var wheels: Array[CarWheel] = []
+var drifting: bool = false
 
 var _shift_timer: float = 0.0
 var _steer: float = 0.0
 var _flipped_time: float = 0.0
 var _air_time: float = 0.0
 var _fall_speed: float = 0.0
+var _drift_time: float = 0.0
+var _beta: float = 0.0                    # body slip angle (rad, absolute)
 
 
 func _ready() -> void:
@@ -165,6 +175,7 @@ func _physics_process(delta: float) -> void:
 	var up: Vector3 = basis_now.y
 	speed = linear_velocity.dot(fwd)
 	_update_gearbox(delta)
+	_update_drift(delta, up)
 
 	# suspension, with an anti-roll bar per axle
 	var loads: Array[float] = []
@@ -241,7 +252,7 @@ func _read_input(delta: float) -> void:
 	var max_angle: float = deg_to_rad(lerpf(max_steer_deg, high_speed_steer_deg, clampf(kmh / steer_falloff_kmh, 0.0, 1.0)))
 	var target: float = steer_input * max_angle
 	var lat: float = linear_velocity.dot(global_basis.x)
-	if absf(speed) > 3.0 and absf(steer_input) < 0.1:
+	if absf(speed) > 3.0 and (absf(steer_input) < 0.1 or drifting):
 		var slip_angle: float = atan2(lat, absf(speed))
 		target += clampf(slip_angle, -max_angle, max_angle) * countersteer_assist
 	_steer = move_toward(_steer, target, steer_speed * delta)
@@ -315,7 +326,10 @@ func _apply_tire(w: CarWheel, delta: float, drive: float, up: Vector3) -> void:
 			mu *= handbrake_rear_grip
 		elif drivetrain != Drivetrain.FWD:
 			var sliding: float = clampf((absf(atan2(v_lat, maxf(absf(v_long), 1.0))) - deg_to_rad(peak_slip_deg)) / 0.3, 0.0, 1.0)
-			mu *= 1.0 - power_oversteer * throttle * sliding
+			var boost: float = drift_oversteer_boost if drifting else 1.0
+			# past the drift angle limit the rear finds its grip again (assist), so the slide holds
+			var hold: float = clampf((_beta - deg_to_rad(drift_max_angle_deg)) / deg_to_rad(10.0), 0.0, 1.0) if drifting else 0.0
+			mu *= 1.0 - clampf(power_oversteer * boost, 0.0, 0.9) * throttle * sliding * (1.0 - hold)
 	var max_force: float = mu * w.tire_load
 
 	# lateral: slip-angle curve, rising to a peak, then falling to slide_grip
@@ -351,10 +365,31 @@ func _apply_tire(w: CarWheel, delta: float, drive: float, up: Vector3) -> void:
 	apply_force(wheel_fwd * f_long + wheel_right * f_lat, r)
 
 
+func _update_drift(delta: float, up: Vector3) -> void:
+	var lat: float = linear_velocity.dot(global_basis.x)
+	var beta: float = absf(atan2(lat, maxf(absf(speed), 1.0)))
+	_beta = beta
+	if Input.is_action_just_pressed("handbrake") and speed * 3.6 > drift_min_kmh and absf(steer_input) > 0.2:
+		drifting = true
+		_drift_time = 0.0
+		# kick the tail out: an angular impulse that adds drift_kick rad/s of yaw
+		var yaw_inertia: float = mass * (wheelbase * wheelbase + track_width * track_width) / 6.0
+		apply_torque_impulse(up * signf(steer_input) * drift_kick * yaw_inertia)
+	if drifting:
+		_drift_time += delta
+		# drift assist: hold the angle instead of spinning
+		var over: float = clampf((beta - deg_to_rad(drift_max_angle_deg)) / deg_to_rad(15.0), 0.0, 1.0)
+		if over > 0.0:
+			apply_torque(-up * angular_velocity.dot(up) * mass * drift_assist * over * 4.0)
+		var settled: bool = _drift_time > 0.4 and beta < deg_to_rad(peak_slip_deg * 1.2)
+		if settled or speed * 3.6 < drift_min_kmh * 0.5:
+			drifting = false
+
+
 ## Stability control: damps yaw when the car slides further than it should,
 ## unless the driver is drifting on purpose with the handbrake.
 func _stability(up: Vector3, fwd: Vector3) -> void:
-	if not stability_control or handbrake or absf(speed) < 5.0:
+	if not stability_control or handbrake or drifting or absf(speed) < 5.0:
 		return
 	var lat: float = linear_velocity.dot(global_basis.x)
 	var beta: float = absf(atan2(lat, absf(speed)))
