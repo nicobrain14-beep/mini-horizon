@@ -1,19 +1,20 @@
 class_name TestTrack
 extends Node3D
-## Test scene for the look: Poly Haven HDRI sky, sun with shadows, a grass field and
-## an asphalt road, a few concrete blocks for scale. Everything is built in code so the
+## Test scene for the car and the look: golden-hour Poly Haven HDRI, low warm sun with
+## shadows, a grass field, a long asphalt road and a big asphalt pad for drifting, a few
+## concrete blocks for scale. Everything is built in code so the
 ## values below can be tuned in the Inspector (select the root node "TestTrack").
 
 @export_group("Sky and exposure")
-@export var hdri: Texture2D = preload("res://assets/hdri/kloofendal_48d_partly_cloudy_puresky_2k.hdr")
+@export var hdri: Texture2D = preload("res://assets/hdri/kloppenheim_06_puresky_2k.hdr")
 @export var sky_energy: float = 1.0
 @export_range(0.1, 4.0) var exposure: float = 1.0
 @export_enum("Linear", "Reinhard", "Filmic", "ACES", "AgX") var tonemap: int = 4
 
 @export_group("Sun")
-@export var sun_rotation_deg: Vector3 = Vector3(-35.0, -130.0, 0.0)
-@export var sun_energy: float = 2.2
-@export var sun_color: Color = Color(1.0, 0.95, 0.86)
+@export var sun_rotation_deg: Vector3 = Vector3(-14.0, 139.0, 0.0)   ## matches the sun in the HDRI
+@export var sun_energy: float = 2.0
+@export var sun_color: Color = Color(1.0, 0.8, 0.58)
 @export var shadow_distance: float = 180.0
 
 @export_group("Effects")
@@ -27,6 +28,7 @@ extends Node3D
 @export var ground_size: float = 600.0
 @export var road_length: float = 500.0
 @export var road_width: float = 12.0
+@export var pad_size: float = 170.0
 @export var grass_material: Material = preload("res://assets/materials/aerial_grass_rock.tres")
 @export var asphalt_material: Material = preload("res://assets/materials/asphalt_02.tres")
 
@@ -59,17 +61,17 @@ func _build_environment() -> void:
 	env.ssr_enabled = ssr_enabled
 	env.ssr_max_steps = 32
 	env.glow_enabled = glow_enabled
-	env.glow_intensity = 0.35
+	env.glow_intensity = 0.5
 	env.glow_bloom = 0.04
 	env.glow_hdr_threshold = 1.2
 	env.fog_enabled = fog_enabled
-	env.fog_light_color = Color(0.72, 0.8, 0.9)
+	env.fog_light_color = Color(1.0, 0.82, 0.64)
 	env.fog_density = fog_density
 	env.fog_sky_affect = 0.15
 	env.fog_aerial_perspective = 0.6
 	env.adjustment_enabled = true
 	env.adjustment_contrast = 1.05
-	env.adjustment_saturation = 1.08
+	env.adjustment_saturation = 1.12
 
 	var world_env := WorldEnvironment.new()
 	world_env.name = "WorldEnvironment"
@@ -96,6 +98,10 @@ func _build_ground() -> void:
 	ground.set_meta("surface", "grass")
 	var road := _static_box("Road", Vector3(road_width, 0.1, road_length), Vector3(0.0, 0.05, 0.0), asphalt_material)
 	road.set_meta("surface", "asphalt")
+	var pad := _static_box("DriftPad", Vector3(pad_size, 0.1, pad_size), Vector3(road_width * 0.5 + 20.0 + pad_size * 0.5, 0.05, -60.0), asphalt_material)
+	pad.set_meta("surface", "asphalt")
+	var dirt := _static_box("DirtPatch", Vector3(60.0, 0.1, 120.0), Vector3(-(road_width * 0.5 + 50.0), 0.05, 60.0), grass_material)
+	dirt.set_meta("surface", "dirt")
 
 
 func _build_blocks() -> void:
