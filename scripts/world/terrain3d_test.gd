@@ -57,8 +57,8 @@ func _build_terrain() -> void:
 func _texture_asset(asset_name: String, file: String, uv_scale: float) -> Terrain3DTextureAsset:
 	var ta := Terrain3DTextureAsset.new()
 	ta.name = asset_name
-	ta.albedo_texture = load("res://assets/textures/terrain/%s_alb_h.png" % file)
-	ta.normal_texture = load("res://assets/textures/terrain/%s_nrm_r.png" % file)
+	ta.albedo_texture = load("res://assets/textures/terrain/%s_alb_h.webp" % file)
+	ta.normal_texture = load("res://assets/textures/terrain/%s_nrm_r.webp" % file)
 	ta.uv_scale = uv_scale
 	return ta
 

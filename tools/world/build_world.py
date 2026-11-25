@@ -5,8 +5,8 @@ original names and no geometric shapes: everything is shaped with domain-warped 
 Phase 1 (this file): relief, sea, lake, rivers, zones and the styled draft map.
 Phase 2 adds the road network.
 
-Writes to assets/world/: height.bin (float32, N x N, rows north -> south), zones.png (packed
-masks), world.json (water, places) and map_draft.png (styled satellite-like map with labels).
+Writes to assets/world/: height.bin (float32, N x N, rows north -> south), cache.npz (masks for the
+road builder and the map painter) and world.json (water, places). Then run build_roads.py and paint_map.py.
 """
 import json, math, os, sys, time
 import numpy as np
@@ -60,7 +60,7 @@ def blob(cx, cz, rx, rz, soft):
 log('warp')
 
 # ---------------------------------------------------------------- land and sea
-coast_n = 650 * fbm(P[4], X / 3200, Z / 3200, 3) + 260 * fbm(P[18], X / 1100, Z / 1100, 4) + 80 * fbm(P[19], X / 320, Z / 320, 3)
+coast_n = 650 * fbm(P[4], X / 3200, Z / 3200, 3) + 340 * fbm(P[18], X / 1100, Z / 1100, 4) + 150 * fbm(P[19], X / 380, Z / 380, 4) + 40 * fbm(P[23], X / 110, Z / 110, 3)
 L = np.ones_like(X)
 L -= smooth(-2650, -3350, WX + 0.28 * WZ + coast_n)                       # west coast (runs south-east)
 L -= smooth(2250, 2950, WZ - 0.3 * WX + coast_n)                          # south coast (rises to the east)
@@ -75,21 +75,28 @@ L -= 1.3 * bay
 pen = np.exp(-(((WX - 2650) * 0.7 + (WZ - 2900) * 0.7) / 420) ** 2 - (((WX - 2650) * -0.7 + (WZ - 2900) * 0.7) / 1150) ** 2)
 L += 1.4 * pen                                                            # south-east peninsula
 L += 1.5 * blob(-1300, 3300, 220, 160, 0.5)                               # Isla Gaviota
+for ix, (cx_, cz_, rr) in enumerate([(-3550, -2600, 160), (-3600, 1500, 120), (3550, 2300, 150), (3350, -2900, 110), (600, 3500, 140), (-2200, 3350, 90), (3750, 1900, 80)]):
+    L += 1.5 * blob(cx_, cz_, rr, rr * 0.8, 0.5)                             # islets along the coast
 land = smooth(0.42, 0.58, L)
 LX = X + 380 * fbm(P[34], X / 900, Z / 900, 4); LZ = Z + 380 * fbm(P[35], X / 900, Z / 900, 4)
 LX = LX + 160 * fbm(P[25], X / 300, Z / 300, 3); LZ = LZ + 160 * fbm(P[26], X / 300, Z / 300, 3)
 lake = (1 - smooth(0.8, 1.15, np.hypot((LX + 2050) / 620, (LZ + 350) / 1000))) * land
-lake *= 1 - (1 - smooth(0.6, 1.0, np.hypot((X + 2150) / 160, (Z + 150) / 110)))        # an island in the lake
+# islands in the lake: irregular, elongated, with a smaller islet beside the big one
+IX = X + 70 * fbm(P[30], X / 140, Z / 140, 3); IZ = Z + 70 * fbm(P[31], X / 140, Z / 140, 3)
+isl = 1 - smooth(0.75, 1.0, np.hypot(((IX + 2120) * 0.82 + (IZ + 180) * 0.57) / 230, ((IX + 2120) * -0.57 + (IZ + 180) * 0.82) / 105))
+isl = np.maximum(isl, 1 - smooth(0.7, 1.0, np.hypot((IX + 1880) / 55, (IZ + 20) / 40)))
+lake *= 1 - isl
 log('land')
 
 # ---------------------------------------------------------------- relief
-lowland = 35 + 45 * fbm(P[5], X / 3000, Z / 3000, 4) + 18 * fbm(P[6], X / 800, Z / 800, 4)
-hills = 70 * smooth(0.0, 0.6, fbm(P[7], X / 1600, Z / 1600, 4)) * (0.6 + 0.4 * fbm(P[8], X / 500, Z / 500, 3))
+lowland = 30 + 40 * fbm(P[5], X / 3000, Z / 3000, 4) + 14 * fbm(P[6], X / 800, Z / 800, 4)
+hilliness = smooth(-0.25, 0.35, fbm(P[7], X / 2200, Z / 2200, 3))            # where the land is hilly (most of it)
+hills = (60 + 230 * ridged(P[8], X / 1300, Z / 1300, 6)) * hilliness + 25 * fbm(P[28], X / 350, Z / 350, 4) * hilliness
 h = lowland + hills
 sierra = blob(-2300, -2700, 2100, 1500, 0.45) * smooth(-900, -1700, WZ)
 h += sierra * (180 + 900 * ridged(P[9], X / 1900, Z / 1900, 6))
 plateau = blob(400, -2750, 1700, 950, 0.3)
-h += plateau * (260 + 40 * fbm(P[10], X / 900, Z / 900, 3)) * (1 - sierra)
+h += plateau * (250 + 40 * fbm(P[10], X / 900, Z / 900, 3) + 70 * ridged(P[27], X / 700, Z / 700, 4)) * (1 - sierra)
 ne_high = blob(2600, -2500, 1500, 1300, 0.35)
 h += ne_high * (300 + 120 * ridged(P[11], X / 1400, Z / 1400, 4)) * (1 - plateau)
 # the volcano: asymmetric cone with radial gullies and a crater, south of centre
@@ -97,27 +104,29 @@ VX, VZ = 650, 1750
 vr = np.hypot((X - VX) * 1.0, (Z - VZ) * 1.12)
 ang = np.arctan2(Z - VZ, X - VX)
 # irregular gullies: ridged noise in polar coordinates, of varying width, fading near the top
-gul = ridged(P[12], np.cos(ang) * 6 + vr / 900, np.sin(ang) * 6 + 0.3 * fbm(P[36], X / 500, Z / 500, 2), 4)
-gullies = 1 - 0.03 * gul * smooth(250, 900, vr) * (0.6 + 0.4 * fbm(P[37], X / 400, Z / 400, 2))
-lobes = 1 + 0.12 * fbm(P[38], np.cos(ang) * 2.2, np.sin(ang) * 2.2, 3)       # not a perfect cone
+gul = ridged(P[12], (X - VX) / 380 + 0.6 * fbm(P[36], X / 900, Z / 900, 2), (Z - VZ) / 380, 5)
+gullies = 1 - 0.012 * gul * smooth(500, 1200, vr) * (0.6 + 0.4 * fbm(P[37], X / 400, Z / 400, 2))
+lobes = 1 + 0.08 * fbm(P[38], np.cos(ang) * 1.1 + 3.3, np.sin(ang) * 1.1 + 1.7, 2)   # not a perfect cone (slow, no rays)
 cone = 1480 * np.clip(1 - vr / (2500 * lobes), 0, 1) ** 1.85 * gullies * (0.94 + 0.06 * fbm(P[13], X / 600, Z / 600, 3))
 cone = np.maximum(cone, 520 * np.clip(1 - np.hypot(X - 1500, Z - 1350) / 900, 0, 1) ** 1.6)   # a side cone
-crater = 120 * (1 - smooth(70, 190, vr))
+crater = 90 * (1 - smooth(60, 200, vr + 30 * fbm(P[29], X / 80, Z / 80, 2)))
 h = np.maximum(h, cone - crater)
 # plains for farmland: flatten gently
 farm = blob(1700, -1050, 1300, 800, 0.4) * (1 - ne_high * 0.6) * (1 - plateau)
 h = h + ((45 + 12 * fbm(P[14], X / 2000, Z / 2000, 3)) - h) * farm * 0.75
 # city sites: flatter ground
-METRO = (2250, 520); COLONIAL = (-1650, 1350)
-metro = blob(METRO[0], METRO[1], 900, 750, 0.35) * smooth(0.5, 0.75, L)
-colonial = blob(COLONIAL[0], COLONIAL[1], 420, 360, 0.3)
-h = h + ((18 + 6 * fbm(P[15], X / 900, Z / 900, 2)) - h) * metro * 0.85
-h = h + ((90 + 10 * fbm(P[16], X / 500, Z / 500, 2)) - h) * colonial * 0.7
+METRO = (2350, 300); COLONIAL = (-1650, 1350)
+metro = blob(METRO[0], METRO[1], 1550, 1250, 0.45)
+metro = smooth(0.35, 0.55, metro + 0.45 * fbm(P[21], X / 700, Z / 700, 3) + 0.15 * fbm(P[22], X / 220, Z / 220, 3)) * smooth(0.5, 0.75, L)
+colonial = blob(COLONIAL[0], COLONIAL[1], 760, 640, 0.45)
+colonial = smooth(0.35, 0.55, colonial + 0.45 * fbm(P[24], X / 450, Z / 450, 3) + 0.15 * fbm(P[25], X / 160, Z / 160, 3))
+h = h + ((18 + 10 * fbm(P[15], X / 900, Z / 900, 2)) - h) * metro * 0.9
+h = h + ((70 + 14 * fbm(P[16], X / 500, Z / 500, 2)) - h) * colonial * 0.8
 # coast: beaches, cliffs on the peninsula, sea floor
-shore = smooth(0.45, 1.0, L) ** 0.8                                    # a wide, low coastal plain
+shore = smooth(0.45, 1.25, L) ** 0.65                                   # a wide, low coastal plain
 cliffs = pen * 0.8 * smooth(0.4, 0.7, fbm(P[24], X / 800, Z / 800, 3) + 0.5)
 h = h * (shore * (1 - cliffs) + cliffs) + 1.4 * (1 - shore) * (1 - cliffs)
-sea_floor = -30 + 10 * fbm(P[17], X / 900, Z / 900, 3) - 40 * smooth(0.4, 0.0, L)
+sea_floor = -4 - 26 * smooth(0.42, 0.05, L) + 2 * fbm(P[17], X / 900, Z / 900, 3) - 20 * smooth(0.1, -0.4, L)
 h = h * land + sea_floor * (1 - land)
 LAKE_LEVEL = 42.0
 h = np.where(lake > 0.02, h * (1 - lake) + (LAKE_LEVEL - 4 - 14 * lake) * lake, h)
@@ -138,6 +147,14 @@ def box_blur(a, r, passes=3):
             c = np.cumsum(np.pad(a, [(r + 1, r) if i == ax else (0, 0) for i in range(2)], mode='edge'), axis=ax, dtype=np.float64)
             a = ((np.take(c, range(2 * r + 1, c.shape[ax]), axis=ax) - np.take(c, range(0, c.shape[ax] - 2 * r - 1), axis=ax)) / (2 * r + 1)).astype(np.float32)
     return a
+
+MINIS = {'tlacotal': (-1350, -700, 420), 'puerto_chico': (-2600, 2000, 420), 'los_magueyes': (1300, -1500, 420)}
+hb_city = box_blur(h, 25)
+mini_mask = np.zeros_like(h)
+for _id, (cx, cz, r) in MINIS.items():
+    m = (1 - smooth(r * 0.6, r * 1.2, np.hypot(X - cx, Z - cz) + 0.5 * (WX - X) + 160 * fbm(P[26], X / 260, Z / 260, 3))) * smooth(0.5, 0.7, L)
+    mini_mask = np.maximum(mini_mask, m)
+    h = h + (np.maximum(hb_city, 3.0) - h) * m * 0.9
 
 def chaikin(pts, it=4):
     p = np.asarray(pts, float)
@@ -197,83 +214,27 @@ gz, gx = np.gradient(h, CELL)
 slope = np.degrees(np.arctan(np.hypot(gx, gz)))
 n1 = 0.5 + 0.5 * fbm(P[31], X / 220, Z / 220, 4)
 n2 = 0.5 + 0.5 * fbm(P[32], X / 1300, Z / 1300, 4)
-snow = smooth(1000, 1150, h + 120 * (n1 - .5) + 90 * gul * smooth(2500, 1200, vr)) * smooth(46, 30, slope)
-rock = np.clip(smooth(28, 42, slope) + smooth(850, 1000, h) * 0.5, 0, 1) * (1 - snow)
+snow = smooth(880, 1040, h + 160 * (n1 - .5)) * smooth(72, 58, slope)
+rock = np.clip(smooth(38, 52, slope) + smooth(950, 1100, h) * 0.6, 0, 1) * (1 - snow)
 semidesert = plateau * (0.7 + 0.3 * n2) * (1 - sierra)
-forest = np.clip((sierra * smooth(200, 320, h) * smooth(1000, 820, h) + smooth(250, 420, h) * smooth(1000, 820, h) * smooth(2600, 1500, vr)) * (0.45 + 0.75 * n1)
-                 + 0.55 * blob(-400, -1500, 900, 600, 0.4) * smooth(0.45, 0.7, n1), 0, 1) * (1 - semidesert)
+beach_hint = smooth(8, 2, h)
+open_land = np.clip(farm * 0.9 + metro + colonial + beach_hint + smooth(0.68, 0.8, n1) * 0.8, 0, 1)      # clearings come from noise, not from flat ground
+forest = np.clip(0.75 + 0.5 * hilliness + sierra * 0.8 + 0.4 * (n2 - 0.5), 0, 1)
+forest = forest * smooth(1050, 880, h) * (1 - np.clip(open_land, 0, 1)) * (1 - semidesert * 0.7) * (1 - smooth(560, 760, h) * smooth(1700, 1200, vr))
 farmland = farm * (1 - forest) * (1 - semidesert)
 beach = smooth(6, 2, h) * land * (1 - pen * 0.7)
 city = np.clip(metro * 0.95 + colonial * 0.8, 0, 1)
-ash = smooth(1700, 900, vr) * smooth(250, 500, h) * (1 - snow)                # dark volcanic soil
+ash = smooth(1500, 900, vr) * smooth(560, 760, h + 60 * (n1 - 0.5)) * (1 - snow)   # bare volcanic soil above the tree line
 mud = smooth(40, 0, dist_r) * (1 - water) * 0.7
 log('biomes')
-
-# ---------------------------------------------------------------- styled draft map (satellite look, painted from the data)
-R_ = np.random.default_rng(11)
-city_hint = np.clip(metro + colonial, 0, 1)
-def col(*c): return np.array(c, np.float32) / 255.0
-img = np.zeros(h.shape + (3,), np.float32)
-n3 = 0.5 + 0.5 * fbm(P[39], X / 600, Z / 600, 4)
-grass = col(98, 128, 66) * (0.85 + 0.3 * n1[..., None]) + (col(156, 152, 88) - col(98, 128, 66)) * (smooth(0.35, 0.75, n2) * 0.8)[..., None]
-grass = grass * (0.9 + 0.2 * n3[..., None])
-img[:] = grass
-woods = np.clip(smooth(0.55, 0.64, n3) * smooth(0.25, 0.55, n1) + 0.6 * smooth(0.6, 0.7, 0.5 + 0.5 * fbm(P[27], X / 250, Z / 250, 4)), 0, 1) * land * (1 - farm) * (1 - city_hint)
-# farmland: fields in a few directions per district, each field its own crop colour
-fdir = np.floor((0.5 + 0.5 * fbm(P[33], X / 1800, Z / 1800, 2)) * 4)
-ang_f = 0.35 + fdir * 0.55
-u = (X * np.cos(ang_f) + Z * np.sin(ang_f) + 0.2 * (WX - X)) / 150
-v = (-X * np.sin(ang_f) + Z * np.cos(ang_f) + 0.2 * (WZ - Z)) / 95
-fid = (np.floor(u).astype(np.int64) * 73856093 ^ np.floor(v).astype(np.int64) * 19349663 ^ fdir.astype(np.int64) * 83492791) % 997
-crop = np.array([[176, 166, 86], [128, 150, 72], [150, 124, 84], [196, 184, 112], [96, 128, 64], [142, 140, 76], [120, 104, 74]], np.float32) / 255
-fc = crop[fid % 7] * (0.92 + 0.16 * n1[..., None])
-edge = np.minimum(np.minimum(u - np.floor(u), 1 - (u - np.floor(u))), np.minimum(v - np.floor(v), 1 - (v - np.floor(v))))
-fc *= (0.78 + 0.22 * smooth(0.0, 0.06, edge))[..., None]
-img = img * (1 - farmland[..., None]) + fc * farmland[..., None]
-# forest: dark canopy speckle
-speck = R_.random(h.shape).astype(np.float32)
-speck = np.asarray(Image.fromarray((speck * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(0.8)), np.float32) / 255
-fcol = col(44, 76, 42) * (0.7 + 0.6 * speck[..., None]) * (0.85 + 0.3 * n1[..., None])
-img = img * (1 - forest[..., None]) + fcol * forest[..., None]
-img = img * (1 - woods[..., None] * 0.8) + fcol * woods[..., None] * 0.8
-sd = col(178, 152, 108) * (0.85 + 0.25 * n1[..., None]) + (col(150, 136, 92) - col(178, 152, 108)) * smooth(0.6, 0.9, speck)[..., None] * 0.6
-img = img * (1 - semidesert[..., None]) + sd * semidesert[..., None]
-ashc = col(92, 70, 60) * (0.85 + 0.3 * n1[..., None])
-img = img * (1 - ash[..., None] * 0.85) + ashc * ash[..., None] * 0.85
-rk = col(128, 118, 106) * (0.8 + 0.4 * n1[..., None])
-img = img * (1 - rock[..., None]) + rk * rock[..., None]
-img = img * (1 - snow[..., None]) + col(240, 244, 248) * snow[..., None]
-img = img * (1 - beach[..., None]) + col(226, 210, 168) * beach[..., None]
-img = img * (1 - mud[..., None] * 0.5) + col(98, 92, 66) * mud[..., None] * 0.5
-cityc = col(168, 166, 160) * (0.8 + 0.25 * speck[..., None])
-img = img * (1 - city[..., None] * 0.85) + cityc * city[..., None] * 0.85
-# relief: hillshade from the north-west plus a soft ambient term
-lx, ly, lz = -0.55, 0.62, -0.55
-nrm = np.stack([-gx, np.ones_like(h), -gz], -1); nrm /= np.linalg.norm(nrm, axis=-1, keepdims=True)
-shade = np.clip(nrm[..., 0] * lx + nrm[..., 1] * ly + nrm[..., 2] * lz, 0, 1) / ly
-hb = box_blur(h, 4)
-ao = np.clip(1 + (h - hb) * 0.012, 0.75, 1.15)
-img *= ((0.55 + 0.55 * shade) * ao)[..., None]
-# water: deep blue, lighter near the shore, a pale line on the beach
-depth = np.clip(-h / 35, 0, 1)
-wcol = col(36, 96, 126) * (1 - depth[..., None]) + col(14, 42, 72) * depth[..., None]
-wcol = np.where((((lake > 0.35) | (dist_r < 0)) & (h > 0.4))[..., None], col(40, 104, 128), wcol)
-img = np.where(water[..., None], wcol, img)
-foam = water & (np.asarray(Image.fromarray((~water).astype(np.uint8) * 255).filter(ImageFilter.MaxFilter(5)), np.uint8) > 0)
-img = np.where(foam[..., None], img * 0.4 + col(214, 230, 232) * 0.6, img)
-img = np.clip(img, 0, 1)
-im = Image.fromarray((img * 255).astype(np.uint8), 'RGB')
-MAP_PX = 2048
-im = im.resize((MAP_PX, MAP_PX), Image.LANCZOS)
-im = im.filter(ImageFilter.UnsharpMask(radius=1.2, percent=60, threshold=2))
 
 PLACES = [
     ('ciudad', 'CIUDAD ALTA', METRO[0], METRO[1], 3), ('colonial', 'SAN LUCERO', COLONIAL[0], COLONIAL[1], 2),
     ('volcan', 'VOLCÁN TIZÓN', VX, VZ - 250, 3), ('lago', 'LAGO ESPEJO', -2150, -350, 2),
     ('sierra', 'SIERRA DEL NORTE', -2300, -2900, 2), ('barranca', 'LA BARRANCA', 2550, -2350, 2),
     ('meseta', 'MESETA SECA', 400, -2750, 2), ('campos', 'LLANO DE LOS MAGUEYES', 1700, -1150, 2),
-    ('pescadores', 'Tlacotal', -1450, -700, 1), ('montana', 'Real de Piedra', -1950, -2350, 1),
-    ('costa', 'Puerto Chico', -2650, 2300, 1), ('magueyes', 'Los Magueyes', 1300, -1500, 1),
+    ('tlacotal', 'Tlacotal', -1430, -700, 2), ('montana', 'Real de Piedra', -1950, -2350, 1),
+    ('puerto_chico', 'Puerto Chico', -2750, 2080, 2), ('los_magueyes', 'Los Magueyes', 1300, -1500, 2),
     ('festival', 'FESTIVAL HORIZONTE', -350, 250, 2), ('peninsula', 'PUNTA AZUL', 2750, 3000, 2),
     ('isla', 'Isla Gaviota', -1330, 3230, 1), ('bahia', 'Bahía Alta', 3100, 750, 1),
 ]
@@ -285,18 +246,16 @@ def on_land(x, z):
             if sample(qx, qz, h) > 3 and sample(qx, qz, water.astype(np.float32)) < 0.1: return float(qx), float(qz)
     return x, z
 PLACES = [(p[0], p[1], *on_land(p[2], p[3]), p[4]) if p[0] not in ('lago', 'bahia', 'isla') else p for p in PLACES]
-draw = ImageDraw.Draw(im)
-FONT = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
-for pid, label, x, z, imp in PLACES:
-    px = (x + SIZE / 2) / SIZE * MAP_PX; pz = (z + SIZE / 2) / SIZE * MAP_PX
-    f = ImageFont.truetype(FONT, {1: 18, 2: 24, 3: 34}[imp])
-    draw.text((px, pz), label, font=f, fill=(255, 255, 255), anchor='mm', stroke_width=3 if imp > 1 else 2, stroke_fill=(20, 28, 34))
 os.makedirs(OUT, exist_ok=True)
-im.save(os.path.join(OUT, 'map_draft.png'), optimize=True)
 h.astype('<f4').tofile(os.path.join(OUT, 'height.bin'))
-zones = np.stack([forest, farmland, semidesert, city], -1)
-Image.fromarray((np.clip(zones, 0, 1) * 255).astype(np.uint8), 'RGBA').save(os.path.join(OUT, 'zones.png'), optimize=True)
+f16 = lambda a: np.asarray(a, np.float16)
+np.savez_compressed(os.path.join(OUT, 'cache.npz'), h=h.astype(np.float32), land=f16(land), lake=f16(lake), water=water, dist_r=dist_r.astype(np.float32),
+    forest=f16(forest), farmland=f16(farmland), semidesert=f16(semidesert), metro=f16(metro), colonial=f16(colonial), snow=f16(snow), rock=f16(rock),
+    beach=f16(beach), ash=f16(ash), mud=f16(mud), pen=f16(pen), farm=f16(farm), mini=f16(mini_mask), hilly=f16(hilliness), vr=vr.astype(np.float32), n1=f16(n1), n2=f16(n2), WX=WX.astype(np.float32), WZ=WZ.astype(np.float32))
 json.dump(dict(v=3, name='Valle Alto', size=SIZE, n=N, spacing=CELL, sea=0.0, lake=dict(level=LAKE_LEVEL), rivers=river_out,
-               places=[dict(id=p[0], name=p[1], x=p[2], z=p[3], importance=p[4], y=round(float(sample(p[2], p[3], h)), 1)) for p in PLACES]),
+               cities=dict(ciudad=dict(tier='grande', x=METRO[0], z=METRO[1], r=900), san_lucero=dict(tier='mediana', x=COLONIAL[0], z=COLONIAL[1], r=430),
+                           **{k: dict(tier='mini', x=v[0], z=v[1], r=v[2]) for k, v in MINIS.items()}),
+               volcano=dict(x=VX, z=VZ),
+               places=[dict(id=p[0], name=p[1], x=round(float(p[2]), 1), z=round(float(p[3]), 1), importance=p[4], y=round(float(sample(p[2], p[3], h)), 1)) for p in PLACES]),
           open(os.path.join(OUT, 'world.json'), 'w'), separators=(',', ':'))
 log('done', N, 'x', N)

@@ -7,3 +7,5 @@
 # world generator intermediates (rebuilt by tools/world/build_world.py)
 assets/world/height.bin
 assets/world/zones.png
+assets/world/cache.npz
+assets/world/height_roads.bin
